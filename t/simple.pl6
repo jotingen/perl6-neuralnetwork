@@ -11,5 +11,8 @@ my $nn = AI::NeuralNetwork.new(inputs => 2,
 
 say $nn.perl;
 
-say $nn.train(input => [0,1],
+for 0 ..^ 5 {
+	$nn.train(input => [[0,1].pick,[0,1].pick],
 			  expected => [1]);
+	say $nn.perl;
+}

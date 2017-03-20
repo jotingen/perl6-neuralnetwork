@@ -5,27 +5,23 @@ use v6;
 unit module AI;
 
 class Neuron {
-  has @weights;
-  my $value;
+  has @.weights;
+  has UInt $.last-value;
   
   method calc (@inputs) {
-    say 'T';
     my @sub;
     for 0 ..^ @inputs.elems -> $ndx {
       push @sub, @inputs[$ndx] * @!weights[$ndx];
     }
-    say 'T';
-    say @inputs.perl;
-    say @!weights.perl;
-    say @sub.perl;
-    return @sub.sum > 0;
+    $!last-value = @sub.sum > 0;
+    return $!last-value;
   }
 };
 
 class NeuralNetwork {
-  has UInt $inputs;
-  has UInt $outputs;
-  has      @levels;
+  has UInt $.inputs;
+  has UInt $.outputs;
+  has      @.levels;
 
 method BUILD (:$inputs!, 
               :$outputs!, 
@@ -49,26 +45,13 @@ method BUILD (:$inputs!,
   @level.perl.say;
   push @!levels, @level;
 
-  #if @levelsize.elems {
-  #
-  #} else {
-  #  for 0 ..^ $inputs {
-  #    my @w;
-  #    for 0 ..^ $outputs {
-  #      push @w, (-200 .. 200).pick/100.0;
-  #    }
-  #    push @!weights, @w;
-  #  }
-  #}
-
 }
 
 
 method sim (:@input!) {
- say @!levels.perl; 
- for @levels -> @level {
+ for @!levels -> @level {
   for @level -> $neuron {
-    say $neuron.calc(@input);
+    $neuron.calc(@input);
   }
  }
  return (@input.sum)/(@input.elems);
@@ -76,9 +59,8 @@ method sim (:@input!) {
 
 method train (:@input!, 
               :@expected!) {
-  say @input;
   my @outputs = self.sim(input => @input);
-  say @outputs;
+  say "{@input} : {@outputs}({@expected})";
   return @outputs/@expected*1.0;
 }
 
