@@ -5,16 +5,16 @@ use v6;
 unit module AI;
 
 class Neuron {
-  has @.weights;
-  has UInt $.last-value;
+  has @.weights is rw;
+  has Num $.out;
   
   method calc (@inputs) {
-    my @sub;
+    my $net = 0;
     for 0 ..^ @inputs.elems -> $ndx {
-      push @sub, @inputs[$ndx] * @!weights[$ndx];
+      $net += @inputs[$ndx] * @!weights[$ndx];
     }
-    $!last-value = @sub.sum > 0;
-    return $!last-value;
+    $!out = 1/(1+(-$net).exp);
+    return $!out;
   }
 };
 
@@ -36,13 +36,11 @@ method BUILD (:$inputs!,
       push @level, ::Neuron.new(weights => [(-200 .. 200).pick/100.0]);
     }
     push @!levels, @level;
-    say "multi";
   }
   @level = [];
   for 0 ..^ $outputs {
     push @level, ::Neuron.new(weights => [-1,1]);
   }
-  @level.perl.say;
   push @!levels, @level;
 
 }
@@ -54,14 +52,33 @@ method sim (:@input!) {
     $neuron.calc(@input);
   }
  }
- return (@input.sum)/(@input.elems);
+  my @output;
+  for @!levels[*-1] -> @level {
+  for @level -> $neuron {
+    push @output, $neuron.out;
+  }
+}
+return @output;
 }
 
 method train (:@input!, 
               :@expected!) {
   my @outputs = self.sim(input => @input);
-  say "{@input} : {@outputs}({@expected})";
-  return @outputs/@expected*1.0;
+  my @errors;
+  for 0 ..^ @expected.elems -> $ndx {
+     push @errors, 1/2*(@expected[$ndx]-@outputs[$ndx])**2;
+  }
+  say "{@input} : {@outputs}({@expected}) : {@errors}";
+  
+  my $learning-rate = .5;
+ for @!levels -> @level {
+  for @level -> $neuron {
+    for 0 ..^ $neuron.weights.elems -> $w {
+      $neuron.weights[$w] = $neuron.weights[$w] - $learning-rate * ($neuron.out-@expected) * $neuron.out * (1 - $neuron.out) * $neuron.out;
+    }
+  }
+ }
+  return @errors;
 }
 
 };
