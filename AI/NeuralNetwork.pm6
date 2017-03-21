@@ -7,6 +7,7 @@ unit module AI;
 class Neuron {
   has @.weights is rw;
   has Num $.out;
+  has Num $.error is rw;
   
   method calc (@inputs) {
     my $net = 0;
@@ -16,69 +17,83 @@ class Neuron {
     $!out = 1/(1+(-$net).exp);
     return $!out;
   }
+
+  method derivative {
+    return $!out * ( 1 - $!out );
+  }
+
 };
 
 class NeuralNetwork {
   has UInt $.inputs;
   has UInt $.outputs;
-  has      @.levels;
+  has Num  @.out;
+  has      @.layer-output;
+  has      @.layer-hidden;
 
 method BUILD (:$inputs!, 
               :$outputs!, 
-              :@levelsize!) {
+              :$hidden!) {
   $!inputs  = $inputs; 
   $!outputs = $outputs;
   
-  my @level = [];
-  for @levelsize -> $size {
-    @level = [];
-    for 0 ..^ $size {
-      push @level, ::Neuron.new(weights => [(-200 .. 200).pick/100.0]);
-    }
-    push @!levels, @level;
+  for 0 ..^ $hidden {
+    push @!layer-hidden, ::Neuron.new(weights => [(-1000 .. 1000).pick/1000.0 xx $inputs]);
   }
-  @level = [];
+
   for 0 ..^ $outputs {
-    push @level, ::Neuron.new(weights => [-1,1]);
+    push @!layer-output, ::Neuron.new(weights => [(-1000 .. 1000).pick/1000.0 xx $hidden]);
   }
-  push @!levels, @level;
 
 }
 
 
 method sim (:@input!) {
- for @!levels -> @level {
-  for @level -> $neuron {
-    $neuron.calc(@input);
-  }
- }
+
   my @output;
-  for @!levels[*-1] -> @level {
-  for @level -> $neuron {
-    push @output, $neuron.out;
+
+  for 0 ..^ @!layer-hidden.elems -> $i {
+    @!layer-hidden[$i].calc(@input);
   }
-}
-return @output;
+
+  for 0 ..^ @!layer-output.elems -> $i {
+    my @hidden-outputs;
+    for 0 ..^ @!layer-hidden.elems -> $k {
+      push @hidden-outputs, @!layer-hidden[$k].out;
+    }
+    @!layer-output[$i].calc(@hidden-outputs);
+    push @output, @!layer-output[$i].out;
+  }
+
+  return @output;
 }
 
 method train (:@input!, 
               :@expected!) {
-  my @outputs = self.sim(input => @input);
-  my @errors;
-  for 0 ..^ @expected.elems -> $ndx {
-     push @errors, 1/2*(@expected[$ndx]-@outputs[$ndx])**2;
-  }
-  say "{@input} : {@outputs}({@expected}) : {@errors}";
-  
-  my $learning-rate = .5;
- for @!levels -> @level {
-  for @level -> $neuron {
-    for 0 ..^ $neuron.weights.elems -> $w {
-      $neuron.weights[$w] = $neuron.weights[$w] - $learning-rate * ($neuron.out-@expected) * $neuron.out * (1 - $neuron.out) * $neuron.out;
+
+  my $learning-rate = .25;
+
+  self.sim(input => @input);
+
+  for 0 ..^ @!layer-output.elems -> $i {
+    @!layer-output[$i].error = (@expected[$i] - @!layer-output[$i].out) * @!layer-output[$i].derivative;
+    for 0 ..^ @!layer-output.[$i].weights.elems -> $w {
+      @!layer-output[$i].weights[$w] += $learning-rate * @!layer-output[$i].error * @!layer-hidden[$w].out;
     }
   }
- }
-  return @errors;
+  
+  for 0 ..^ @!layer-hidden.elems -> $i {
+    my $weighted-error = 0;
+    for 0 ..^ @!layer-output.elems -> $j {
+      $weighted-error += @!layer-output[$j].error * @!layer-hidden[$i].weights[$j];
+    }
+    @!layer-hidden[$i].error = $weighted-error * @!layer-hidden[$i].derivative;
+    for 0 ..^ @!layer-hidden.[$i].weights.elems -> $w {
+      @!layer-hidden[$i].weights[$w] += $learning-rate * @!layer-hidden[$i].error * @input[$w];
+    }
+  }
+
+
 }
 
 };
