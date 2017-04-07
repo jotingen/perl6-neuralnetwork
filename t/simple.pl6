@@ -5,28 +5,44 @@ use v6;
 use lib "..";
 use AI::NeuralNetwork;
 
-my $nn = AI::NeuralNetwork.new(inputs => 2,
+my $nn = AI::NeuralNetwork.new(learning-rate => .1,
+                               inputs => 2,
 							   outputs => 1,
-                               hidden => 10);
+                               hidden => [4,4]);
 
 #say $nn.perl;
 
-for 0 .. 50000 -> $count {
-	if $count%%1000 {
-	  say $count;
-	  for 0 .. 1 -> $a {
-		for 0 .. 1 -> $b {
-		  my $exp = $a==1 ?? ($b==1 ?? 0 !! 1) !! ($b==1 ?? 1 !! 0);
-          say "{$a} {$b} {$exp}({$nn.sim(input => [$a,$b])})";
-	    }
-	  }
-	}
+for 0 .. 10000 -> $count {
+	my $good = True;
+    say $count;
+    for [0,1] -> $a {
+      for [0,1] -> $b {
+  	    #my $exp = $a || $b;
+  	    my $exp = $a +^ $b;
+  		my $raw = $nn.sim(input => [$a*2-1,$b*2-1])[0];
+  		my $out = ($raw > 0) ?? 1 !! 0;
+        say "{$a} {$b} {$exp}({$out}:{$raw})";
+  	    $good = False if $out != $exp;
+      }
+    }
+      .perl.say for $nn.layers;
+      say '';
+    last if $good;
 	my $a = [0,1].pick.Int;
 	my $b = [0,1].pick.Int;
-	#xor is acting weird
-	my $exp = $a==1 ?? ($b==1 ?? 0 !! 1) !! ($b==1 ?? 1 !! 0);
-	$nn.train(input => [$a,$b],
-			  expected => [$exp]);
+	#my $exp = $a || $b;
+	my $exp = $a +^ $b;
+	$nn.train(input => [$a*2-1,$b*2-1],
+			  expected => [($exp*2)-1]);
 }
 
-#say $nn.perl;
+	  for [0,1] -> $a {
+		for [0,1] -> $b {
+		  #my $exp = $a || $b;
+		  my $exp = $a +^ $b;
+		  my $out = ($nn.sim(input => [$a*2-1,$b*2-1])[0] > 0) ?? 1 !! 0;
+          say "{$a} {$b} {$exp}({$out})";
+	    }
+	  }
+      .perl.say for $nn.layers;
+      say '';
